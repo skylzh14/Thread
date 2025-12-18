@@ -1,0 +1,9 @@
+# Visual Studio 临时文件
+.vs/
+*.vsidx
+*.suo
+*.user
+Debug/
+Release/
+x64/
+x86/
