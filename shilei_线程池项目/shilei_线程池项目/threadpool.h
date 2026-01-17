@@ -81,7 +81,27 @@ private:
 	std::condition_variable cond_;
 };
 
-//任务抽象积累
+//提前声明
+class Task;
+
+//实现接收提交到任务队列的task执行完的返回值类型Result
+class Result {
+public:
+	Result(std::shared_ptr<Task> task, bool isValid = true);
+	~Result() = default;
+	
+	//问题一：setVal()方法，获取任务的返回值，信号量post
+
+	//问题二：get（）方法，用户调用这个方法获取任务的返回值  信号量通信
+	//wait信号量可以，就可以获得返回值，否则阻塞
+
+private:
+	Any any_;//存储任务返回值
+	Semaphore sema_;//线程通信信号量
+	std::shared_ptr<Task> task_;//指向对应的获取返回值的任务对象
+	std::atomic_bool isValid_;//返回值是否有效
+};
+//任务抽象基类
 class Task {
 public:
 	//用户自定义任务类型，从Task继承，重写run方法，实现自定义处理
@@ -121,7 +141,7 @@ public:
 	void setTaskQueMaxThreshHold(int threshHold);
 
 	//提交任务
-	void submitTask(std::shared_ptr<Task> sp);
+	Result submitTask(std::shared_ptr<Task> sp);
 
 	//设置线程池的工作模式
 	void setMode(PoolMode mode);
