@@ -104,6 +104,8 @@ private:
 //任务抽象基类
 class Task {
 public:
+	Task();
+	~Task() = default;
 	//用户自定义任务类型，从Task继承，重写run方法，实现自定义处理
 	virtual Any run() = 0;
 
