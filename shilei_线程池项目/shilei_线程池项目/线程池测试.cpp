@@ -43,7 +43,7 @@ int main() {
 	pool.start(4);
 
 	Result res = pool.submitTask(std::make_shared<MyTask2>());
-	res.get().cast_<int>//类型由用户提供
+	int sum = res.get().cast_<int>//类型由用户提供
 
 	pool.submitTask(std::make_shared<MyTask>());
 	pool.submitTask(std::make_shared<MyTask1>());

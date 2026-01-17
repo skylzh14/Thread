@@ -18,7 +18,7 @@ public:
 	//unique,没有左值引用和左值赋值，成员变量是unique_ptr，所以删去左值的操作
 	Any& operator=(const Any&) = delete;
 	Any(const Any&) = delete;
-	Any& operator=(const Any&&) = delete;
+	Any& operator=(Any&&) = default;
 	Any(Any&&) = default;
 
 	//这个构造函数能接收任意类型的数据
@@ -91,10 +91,10 @@ public:
 	~Result() = default;
 	
 	//问题一：setVal()方法，获取任务的返回值，信号量post
-
+	void setVal(Any any);
 	//问题二：get（）方法，用户调用这个方法获取任务的返回值  信号量通信
 	//wait信号量可以，就可以获得返回值，否则阻塞
-
+	Any get();
 private:
 	Any any_;//存储任务返回值
 	Semaphore sema_;//线程通信信号量
@@ -106,7 +106,12 @@ class Task {
 public:
 	//用户自定义任务类型，从Task继承，重写run方法，实现自定义处理
 	virtual Any run() = 0;
+
+	void exec();
+
+	void setResult(Result* result);
 private:
+	Result* result_;//使用裸指针，因为在Result中使用了shared_ptr<Task>，在此再使用shared_ptr会出现循环引用，内存泄漏
 };
 
 //线程池模式

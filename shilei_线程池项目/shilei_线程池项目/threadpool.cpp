@@ -106,8 +106,10 @@ void ThreadPool::ThreadFunc() {
 			notFull_.notify_all();
 		}//取到任务后，释放锁
 		//当前线程负责执行这个任务
-		if(task != nullptr)
-			task->run();
+		if (task != nullptr)
+			//task->run();//运行任务
+			//还需要记录任务的返回值，run是一个虚函数，则用exec包含run实现。
+			task->exec();
 	}
 }
 /// <summary>
@@ -127,9 +129,37 @@ void Thread::start() {
 	std::thread t(func_);//线程对象 t 和线程函数func
 	t.detach();//分离线程
 }
-/// //// result实现
+
+/// //// Task实现
+Task::Task():result_(nullptr){}
+
+void Task::exec() {
+	if(result_ != nullptr)
+		result_->setVal(run());//这里发生多态的调用
+}
+
+void Task::setResult(Result* result) {
+	result_ = result;
+}
+
+/// //// Result实现
 Result::Result(std::shared_ptr<Task> task, bool isValid):
 	task_(task),isValid_(isValid)
 {
+	task_->setResult(this);
+}
 
+Any Result::get() {
+	if (!isValid_) {
+		return "";
+	}
+	//task如果没有执行完，需要等待,需要将用户进程阻塞
+	sema_.wait();
+	return std::move(any_);
+}
+
+void Result::setVal(Any any) {
+	//存储any到any_
+	any_ = std::move(any);
+	sema_.post();//已获取任务返回值，增加信号量资源
 }
