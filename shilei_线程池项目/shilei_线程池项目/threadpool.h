@@ -34,7 +34,7 @@ public:
 		if (pd == nullptr) {
 			throw "type is unmatch!";
 		}
-		return data;
+		return pd->data_;
 	}
 private:
 	//基类类型

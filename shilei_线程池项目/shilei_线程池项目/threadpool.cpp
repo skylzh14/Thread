@@ -55,6 +55,7 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp) {
 	//若不满，则将任务放到任务队列
 	taskQue_.emplace(sp);
 	taskSize_++;
+	std::cout << "放入一个任务" << std::endl;
 
 	//通知notEmpty_,消费任务
 	notEmpty_.notify_all();
@@ -154,12 +155,15 @@ Any Result::get() {
 		return "";
 	}
 	//task如果没有执行完，需要等待,需要将用户进程阻塞
+	std::cout << "等待任务执行完成！" << std::endl;
 	sema_.wait();
+	std::cout << "已获得任务结果！" << std::endl;
 	return std::move(any_);
 }
 
 void Result::setVal(Any any) {
 	//存储any到any_
 	any_ = std::move(any);
+	std::cout << "保存任务结果！" << std::endl;
 	sema_.post();//已获取任务返回值，增加信号量资源
 }
