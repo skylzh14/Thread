@@ -161,9 +161,15 @@ public:
 private:
 	//定义线程函数
 	void ThreadFunc();
+
+	//检查线程池的工作状态函数
+	bool checkRunningState() const;
 private:
 	std::vector<std::unique_ptr<Thread>> threads_;//线程列表
 	size_t initThreadSize_; //线程初始数量
+	std::atomic_int idleThreadSize_; //空闲线程的数量
+	int threadSizeThreshHold_;//线程数量上线阈值
+	std::atomic_int curThreadSize_;//当前线程池中线程的数量
 
 	std::queue<std::shared_ptr<Task>> taskQue_;//任务队列
 	std::atomic_uint taskSize_;//任务数量
@@ -174,6 +180,7 @@ private:
 	std::condition_variable notEmpty_;	//表示任务队列不空
 
 	PoolMode poolMode_; //当前线程池的工作模式
+	std::atomic_bool isPoolRunning_;//当前线程池的状态
 
 };
 

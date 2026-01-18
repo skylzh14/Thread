@@ -27,6 +27,7 @@ class MyTask2 : public Task {
 public:
 	MyTask2(int begin, int end):begin_(begin), end_(end){}
 	//c++11不能使用auto作为函数的返回值类型，必须给出确定的
+	//run方法最终在线程池分配的线程中执行
 	Any run() {
 		std::cout << "tid::" << std::this_thread::get_id() << "开始执行MyTask2" << std::endl;
 		int sum = 0;

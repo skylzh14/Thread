@@ -1,5 +1,6 @@
 #include "threadpool.h"
 #define TASK_MAX_THRESHHOLD 1024//避免魔鬼数字
+#define THREAD_MAX_THRESHHOLD 10
 #include <functional>
 #include <thread>
 #include <iostream>
@@ -21,10 +22,14 @@ pool.submitTask(std::make_shared<MyTask>());
 
 
 //线程池构造函数
-ThreadPool::ThreadPool():
+ThreadPool::ThreadPool() :
 	initThreadSize_(4), taskSize_(0),
 	taskQueMaxThreshHold_(TASK_MAX_THRESHHOLD),
-	poolMode_(PoolMode::FIXED_MODE)
+	poolMode_(PoolMode::FIXED_MODE),
+	isPoolRunning_(false),
+	idleThreadSize_(0),
+	threadSizeThreshHold_(THREAD_MAX_THRESHHOLD),
+	curThreadSize_(0)
 { }
 
 //线程池析构
@@ -32,8 +37,21 @@ ThreadPool::~ThreadPool() {
 
 }
 
+//检查线程池的工作状态函数
+bool ThreadPool::checkRunningState() const {
+	return isPoolRunning_;
+}
+
+//设置cached模式下线程池线程最大阈值
+void ThreadPool::setThreadSizeThreshHold(int threshold) {
+	if (checkRunningState()) return;
+	if (poolMode_ == PoolMode::CACHE_MODE) 
+		threadSizeThreshHold_ = threshold;
+}
+
 //设置任务队列的上限阈值
 void ThreadPool::setTaskQueMaxThreshHold(int threshHold) {
+	if (checkRunningState()) return;
 	taskQueMaxThreshHold_ = threshHold;
 }
 
@@ -59,11 +77,25 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp) {
 
 	//通知notEmpty_,消费任务
 	notEmpty_.notify_all();
+
+	//Cached模式 任务处理比较紧急，场景：小而快的任务类型
+	//需要根据任务数量和空闲线程数量，判断是否需要增加线程
+	if (poolMode_ == PoolMode::CACHE_MODE
+		&& curThreadSize_ < threadSizeThreshHold_
+		&& taskSize_ > idleThreadSize_) {
+		//创建线程对象时，把线程函数给thread线程对象
+		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this));
+		threads_.emplace_back(std::move(ptr));
+		curThreadSize_++;
+		idleThreadSize_++;
+	}
+
 	return Result(sp, true);
 }
 
 //设置线程池的工作模式
 void ThreadPool::setMode(PoolMode mode) {
+	if (checkRunningState()) return;
 	poolMode_ = mode;
 }
 
@@ -71,7 +103,10 @@ void ThreadPool::setMode(PoolMode mode) {
 void ThreadPool::start(int initThreadSize) {
 	//记录线程个数
 	initThreadSize_ = initThreadSize;
+	curThreadSize_ = initThreadSize;
 	
+	//设置线程池的工作状态
+	isPoolRunning_ = true;
 	//创建线程对象
 	for (int i = 0; i < initThreadSize_; ++i) {
 		//创建线程对象时，把线程函数给thread线程对象
@@ -81,6 +116,7 @@ void ThreadPool::start(int initThreadSize) {
 	//启动所有线程
 	for (int i = 0; i < initThreadSize_; ++i) {
 		threads_[i]->start();//去执行一个线程函数
+		idleThreadSize_++;
 	}
 }
 //定义线程函数
@@ -94,6 +130,7 @@ void ThreadPool::ThreadFunc() {
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
 			//等待notEmpty_条件
 			notEmpty_.wait(lock, [&]()->bool {return taskQue_.size() > 0;});
+			idleThreadSize_--;//拿到任务，空闲线程-1
 			std::cout << "tid:" << std::this_thread::get_id() << "already got mutex!" << std::endl;
 			//如果taskQue_不空，则取任务
 			task = taskQue_.front();
@@ -111,6 +148,7 @@ void ThreadPool::ThreadFunc() {
 			//task->run();//运行任务
 			//还需要记录任务的返回值，run是一个虚函数，则用exec包含run实现。
 			task->exec();
+		idleThreadSize_++;//这里是线程的执行步骤，执行完任务task->exec()，才能到这一行
 	}
 }
 /// <summary>
