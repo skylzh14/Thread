@@ -30,7 +30,7 @@ public:
 	//从base_找到指向的Drive对象,提取出data
 	T cast_() {
 		//除指针、引用外，任何其他类型（值类型、void、整数、模板实例等）都不能用 dynamic_cast。
-		Drive<T>* pd = dynamic_cast<Drive<T> *>(base_.get());
+		Drive<T>* pd = dynamic_cast<Drive<T> *>(base_.get());//base_.get()可以拿到裸指针，可以进行转换。
 		if (pd == nullptr) {
 			throw "type is unmatch!";
 		}

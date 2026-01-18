@@ -24,6 +24,7 @@ public:
 class MyTask2 : public Task {
 public:
 	MyTask2(int begin, int end):begin_(begin), end_(end){}
+	//c++11不能使用auto作为函数的返回值类型，必须给出确定的
 	Any run() {
 		std::cout << "tid::" << std::this_thread::get_id() << "开始执行MyTask2" << std::endl;
 		int sum = 0;
@@ -43,7 +44,7 @@ int main() {
 	pool.start(4);
 
 	Result res = pool.submitTask(std::make_shared<MyTask2>());
-	int sum = res.get().cast_<int>//类型由用户提供
+	int sum = res.get().cast_<int>();//类型由用户提供
 
 	pool.submitTask(std::make_shared<MyTask>());
 	pool.submitTask(std::make_shared<MyTask1>());
