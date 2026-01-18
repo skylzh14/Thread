@@ -9,6 +9,7 @@ public:
 		std::cout << "tid:" << std::this_thread::get_id() << "begin!" << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 		std::cout << "tid:" << std::this_thread::get_id() << "end!" << std::endl;
+		return "";
 	}
 };
 
@@ -18,6 +19,7 @@ public:
 		std::cout << "tid::" << std::this_thread::get_id() << "开始执行MyTask1" << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		std::cout << "tid::" << std::this_thread::get_id() << "睡2秒后,MyTask1结束" << std::endl;
+		return "";
 	}
 };
 
@@ -43,14 +45,29 @@ int main() {
 	ThreadPool pool;
 	pool.start(4);
 
-	Result res = pool.submitTask(std::make_shared<MyTask2>());
-	int sum = res.get().cast_<int>();//类型由用户提供
+	//Master-Slave模型
+	//Master线程负责拆分任务到各个Slave线程
+	//等到Slave线程执行完返回结果
+	//Master合并各个Slave线程的结果
+	Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	int sum1 = res1.get().cast_<int>();//res1.get().cast_<int>() 类型由用户提供
+	std::cout<<"sum ="<< sum1 <<std::endl;
 
-	pool.submitTask(std::make_shared<MyTask>());
+	Result res2 = pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
+	int sum2 = res2.get().cast_<int>();
+
+	Result res3 = pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
+	int sum3 = res3.get().cast_<int>();
+	
+	std::cout << "1-3000累加的结果是：" << sum1 + sum2 + sum3 << std::endl;
+
+
+
+	/*pool.submitTask(std::make_shared<MyTask>());
 	pool.submitTask(std::make_shared<MyTask1>());
 	pool.submitTask(std::make_shared<MyTask>());
 	pool.submitTask(std::make_shared<MyTask>());
-	pool.submitTask(std::make_shared<MyTask1>());
+	pool.submitTask(std::make_shared<MyTask1>());*/
 
 	getchar();
 	return 0;
