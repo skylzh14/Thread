@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <unordered_map>
 
 //c++17有写好的Any类型，接收返回的任意类型
 //手写的Any，在c++14下使用
@@ -126,16 +127,20 @@ enum class PoolMode {
 class Thread {
 public:
 	//线程函数对象 类型
-	using ThreadFunc = std::function<void()>;
+	using ThreadFunc = std::function<void(int)>;
 	//线程构造函数
 	Thread(ThreadFunc func);
 	//线程析构函数
 	~Thread();
 	//线程启动
 	void start();
+	//当前线程id
+	int getId() const;
 	
 private:
 	ThreadFunc func_;
+	static int generateId_;//不同的编号设置，静态变量需在类外初始化
+	int threadId_;//保存线程id
 };
 
 //线程池类型
@@ -163,19 +168,20 @@ public:
 	ThreadPool operator=(const ThreadPool&) = delete;
 private:
 	//定义线程函数
-	void ThreadFunc();
+	void ThreadFunc(int threadId);
 
 	//检查线程池的工作状态函数
 	bool checkRunningState() const;
 private:
-	std::vector<std::unique_ptr<Thread>> threads_;//线程列表
+	//std::vector<std::unique_ptr<Thread>> threads_;//线程列表
+	std::unordered_map<int, std::unique_ptr<Thread>> threads_;//线程列表,记录线程id
 	size_t initThreadSize_; //线程初始数量
 	std::atomic_int idleThreadSize_; //空闲线程的数量
 	int threadSizeThreshHold_;//线程数量上线阈值
 	std::atomic_int curThreadSize_;//当前线程池中线程的数量
 
 	std::queue<std::shared_ptr<Task>> taskQue_;//任务队列
-	std::atomic_uint taskSize_;//任务数量
+	std::atomic_int taskSize_;//任务数量
 	size_t taskQueMaxThreshHold_;//任务队列的最大阈值
 
 	std::mutex taskQueMtx_; //保证任务队列线程安全

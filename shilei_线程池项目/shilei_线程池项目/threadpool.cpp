@@ -84,9 +84,12 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp) {
 	if (poolMode_ == PoolMode::CACHE_MODE
 		&& curThreadSize_ < threadSizeThreshHold_
 		&& taskSize_ > idleThreadSize_) {
-		//创建线程对象时，把线程函数给thread线程对象
-		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this));
-		threads_.emplace_back(std::move(ptr));
+		//创建线程对象时，把线程函数给thread线程对象,ThreadFunc传入一个参数（线程id）
+		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this, std::placeholders::_1));
+		int threadId = ptr->getId();
+		threads_.emplace(threadId, std::move(ptr));
+		/*threads_.emplace_back(std::move(ptr));*/
+		
 		curThreadSize_++;
 	}
 
@@ -109,9 +112,11 @@ void ThreadPool::start(int initThreadSize) {
 	isPoolRunning_ = true;
 	//创建线程对象
 	for (int i = 0; i < initThreadSize_; ++i) {
-		//创建线程对象时，把线程函数给thread线程对象
-		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this));
-		threads_.emplace_back(std::move(ptr));
+		//创建线程对象时，把线程函数给Thread线程对象
+		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this, std::placeholders::_1));
+		int threadId = ptr->getId();
+		threads_.emplace(threadId, std::move(ptr));
+		/*threads_.emplace_back(std::move(ptr));*/
 	}
 	//启动所有线程
 	for (int i = 0; i < initThreadSize_; ++i) {
@@ -120,7 +125,7 @@ void ThreadPool::start(int initThreadSize) {
 	}
 }
 //定义线程函数
-void ThreadPool::ThreadFunc() {  //线程函数返回，线程结束
+void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 	/*std::cout << "begin threadfunc id:" << std::this_thread::get_id() << std::endl;
 	std::cout << "end threadfunc id:" << std::this_thread::get_id() << std::endl;*/
 	for (;;) {
@@ -182,17 +187,26 @@ void ThreadPool::ThreadFunc() {  //线程函数返回，线程结束
 /// 线程方法实现
 /// </summary>
 
+int Thread::generateId_ = 0;
+
 //线程构造函数
-Thread::Thread(ThreadFunc func):func_(func) {
+Thread::Thread(ThreadFunc func):
+	func_(func),threadId_(generateId_++) {
 	
 }
 //线程析构函数
 Thread::~Thread() {
 
 }
+
+////当前线程id
+int Thread::getId() const {
+	return threadId_;
+}
+
 void Thread::start() {
 	//创建一个线程执行一个线程函数
-	std::thread t(func_);//线程对象 t 和线程函数func
+	std::thread t(func_, threadId_);//线程对象 t 和线程函数func
 	t.detach();//分离线程
 }
 
