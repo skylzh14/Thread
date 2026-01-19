@@ -84,6 +84,7 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp) {
 	if (poolMode_ == PoolMode::CACHE_MODE
 		&& curThreadSize_ < threadSizeThreshHold_
 		&& taskSize_ > idleThreadSize_) {
+		std::cout << "create a new thread..." << std::endl;
 		//创建线程对象时，把线程函数给thread线程对象,ThreadFunc传入一个参数（线程id）
 		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this, std::placeholders::_1));
 		int threadId = ptr->getId();
@@ -143,7 +144,7 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 			//当前时间-上一次执行任务时间>60s
 			if (poolMode_ == PoolMode::CACHE_MODE) {
 				//每一秒返回一次  区分超时返回，有任务待返回
-				while (taskQue_.size() > 0) {
+				while (taskQue_.size() == 0) {
 					//超时返回
 					if (std::cv_status::timeout == 
 						notEmpty_.wait_for(lock, std::chrono::seconds(1))) {

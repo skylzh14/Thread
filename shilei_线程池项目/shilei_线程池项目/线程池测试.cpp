@@ -30,6 +30,7 @@ public:
 	//run方法最终在线程池分配的线程中执行
 	Any run() {
 		std::cout << "tid::" << std::this_thread::get_id() << "开始执行MyTask2" << std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(3));
 		int sum = 0;
 		for (int i = begin_; i < end_; ++i) {
 			sum += i;
@@ -53,16 +54,21 @@ int main() {
 	//等到Slave线程执行完返回结果
 	//Master合并各个Slave线程的结果
 	Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
-	int sum1 = res1.get().cast_<int>();//res1.get().cast_<int>() 类型由用户提供
-	std::cout<<"sum ="<< sum1 <<std::endl;
-
 	Result res2 = pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
-	int sum2 = res2.get().cast_<int>();
-
 	Result res3 = pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
-	int sum3 = res3.get().cast_<int>();
 	
+
+	pool.submitTask(std::make_shared<MyTask2>(1001, 2000)); 
+	pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
+	pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
+
+	int sum1 = res1.get().cast_<int>();//res1.get().cast_<int>() 类型由用户提供
+	int sum2 = res2.get().cast_<int>();
+	int sum3 = res3.get().cast_<int>();
 	std::cout << "1-3000累加的结果是：" << sum1 + sum2 + sum3 << std::endl;
+	
+	
+	
 
 
 
