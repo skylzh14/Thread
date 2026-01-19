@@ -44,7 +44,9 @@ private:
 
 int main() {
 	ThreadPool pool;
-	pool.start(4);
+	//用户设置自己的线程池的模式
+	pool.setMode(PoolMode::CACHE_MODE);
+	pool.start(4);//start 后，就不允许setMode，所以需要对pool的状态做一个记录
 
 	//Master-Slave模型
 	//Master线程负责拆分任务到各个Slave线程

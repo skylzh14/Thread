@@ -1,6 +1,7 @@
 #include "threadpool.h"
 #define TASK_MAX_THRESHHOLD 1024//避免魔鬼数字
 #define THREAD_MAX_THRESHHOLD 10
+#define	THREAD_MAX_IDLE_TIME 60//单位 s
 #include <functional>
 #include <thread>
 #include <iostream>
@@ -87,7 +88,6 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp) {
 		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::ThreadFunc, this));
 		threads_.emplace_back(std::move(ptr));
 		curThreadSize_++;
-		idleThreadSize_++;
 	}
 
 	return Result(sp, true);
@@ -120,16 +120,42 @@ void ThreadPool::start(int initThreadSize) {
 	}
 }
 //定义线程函数
-void ThreadPool::ThreadFunc() {
+void ThreadPool::ThreadFunc() {  //线程函数返回，线程结束
 	/*std::cout << "begin threadfunc id:" << std::this_thread::get_id() << std::endl;
 	std::cout << "end threadfunc id:" << std::this_thread::get_id() << std::endl;*/
 	for (;;) {
 		std::shared_ptr<Task> task;
+		auto lastTime = std::chrono::high_resolution_clock().now();
 		{	//获取锁
 			std::unique_lock<std::mutex> lock(taskQueMtx_);
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
-			//等待notEmpty_条件
-			notEmpty_.wait(lock, [&]()->bool {return taskQue_.size() > 0;});
+
+			//cached模式下可能创建很多线程，如果空闲时间超过60s，则回收线程
+			//回收超过initThreadSize_的线程
+			//当前时间-上一次执行任务时间>60s
+			if (poolMode_ == PoolMode::CACHE_MODE) {
+				//每一秒返回一次  区分超时返回，有任务待返回
+				while (taskQue_.size() > 0) {
+					//超时返回
+					if (std::cv_status::timeout == 
+						notEmpty_.wait_for(lock, std::chrono::seconds(1))) {
+						auto now = std::chrono::high_resolution_clock().now();
+						auto dur = std::chrono::duration_cast<std::chrono::seconds>(now - lastTime);
+						if (dur.count() > THREAD_MAX_IDLE_TIME
+							&& curThreadSize_ > initThreadSize_) {
+							//回收线程
+							//记录一些变量的值
+							//把线程对象从线程列表中删除
+
+						}
+					}
+				}
+			}
+			else {
+				//等待notEmpty_条件
+				notEmpty_.wait(lock, [&]()->bool {return taskQue_.size() > 0;});
+			}
+
 			idleThreadSize_--;//拿到任务，空闲线程-1
 			std::cout << "tid:" << std::this_thread::get_id() << "already got mutex!" << std::endl;
 			//如果taskQue_不空，则取任务
@@ -149,6 +175,7 @@ void ThreadPool::ThreadFunc() {
 			//还需要记录任务的返回值，run是一个虚函数，则用exec包含run实现。
 			task->exec();
 		idleThreadSize_++;//这里是线程的执行步骤，执行完任务task->exec()，才能到这一行
+		lastTime = std::chrono::high_resolution_clock().now();//记录上一次执行任务的时间
 	}
 }
 /// <summary>

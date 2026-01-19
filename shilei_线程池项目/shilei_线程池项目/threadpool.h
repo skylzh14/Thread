@@ -147,6 +147,9 @@ public:
 	//设置任务队列的上限阈值
 	void setTaskQueMaxThreshHold(int threshHold);
 
+	//设置cached模式下线程池线程最大阈值
+	void setThreadSizeThreshHold(int threshold);
+
 	//提交任务
 	Result submitTask(std::shared_ptr<Task> sp);
 
