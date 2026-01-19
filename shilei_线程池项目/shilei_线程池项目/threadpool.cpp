@@ -154,7 +154,12 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 							//回收线程
 							//记录一些变量的值
 							//把线程对象从线程列表中删除
+							threads_.erase(threadId);
+							curThreadSize_--;
+							idleThreadSize_--;
 
+							std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
+							return;
 						}
 					}
 				}
