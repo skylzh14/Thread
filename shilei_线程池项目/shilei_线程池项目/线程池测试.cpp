@@ -44,28 +44,31 @@ private:
 };
 
 int main() {
-	ThreadPool pool;
-	//用户设置自己的线程池的模式
-	pool.setMode(PoolMode::CACHE_MODE);
-	pool.start(4);//start 后，就不允许setMode，所以需要对pool的状态做一个记录
+	//线程池ThreadPool对象析构，线程池相关资源回收
+	{
+		ThreadPool pool;
+		//用户设置自己的线程池的模式
+		pool.setMode(PoolMode::CACHE_MODE);
+		pool.start(4);//start 后，就不允许setMode，所以需要对pool的状态做一个记录
 
-	//Master-Slave模型
-	//Master线程负责拆分任务到各个Slave线程
-	//等到Slave线程执行完返回结果
-	//Master合并各个Slave线程的结果
-	Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
-	Result res2 = pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
-	Result res3 = pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
-	
+		//Master-Slave模型
+		//Master线程负责拆分任务到各个Slave线程
+		//等到Slave线程执行完返回结果
+		//Master合并各个Slave线程的结果
+		Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+		Result res2 = pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
+		Result res3 = pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
 
-	pool.submitTask(std::make_shared<MyTask2>(1001, 2000)); 
-	pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
-	pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
 
-	int sum1 = res1.get().cast_<int>();//res1.get().cast_<int>() 类型由用户提供
-	int sum2 = res2.get().cast_<int>();
-	int sum3 = res3.get().cast_<int>();
-	std::cout << "1-3000累加的结果是：" << sum1 + sum2 + sum3 << std::endl;
+		pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
+		pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
+		pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
+
+		int sum1 = res1.get().cast_<int>();//res1.get().cast_<int>() 类型由用户提供
+		int sum2 = res2.get().cast_<int>();
+		int sum3 = res3.get().cast_<int>();
+		std::cout << "1-3000累加的结果是：" << sum1 + sum2 + sum3 << std::endl;
+	}
 	
 	
 	
