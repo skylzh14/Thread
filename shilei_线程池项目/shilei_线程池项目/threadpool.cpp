@@ -1,7 +1,7 @@
 #include "threadpool.h"
 #define TASK_MAX_THRESHHOLD 1024//避免魔鬼数字
 #define THREAD_MAX_THRESHHOLD 10
-#define	THREAD_MAX_IDLE_TIME 60//单位 s
+#define	THREAD_MAX_IDLE_TIME 10//单位 s
 #include <functional>
 #include <thread>
 #include <iostream>
@@ -35,6 +35,11 @@ ThreadPool::ThreadPool() :
 
 //线程池析构
 ThreadPool::~ThreadPool() {
+	isPoolRunning_ = false;
+	notEmpty_.notify_all();//唤醒所有阻塞线程
+	//等待线程池里面的线程返回，阻塞或者正在执行任务
+	std::unique_lock<std::mutex> lock(taskQueMtx_);
+	exitCond_.wait(lock, [&]()->bool {return threads_.size() == 0;});
 
 }
 
@@ -132,19 +137,19 @@ void ThreadPool::start(int initThreadSize) {
 void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 	/*std::cout << "begin threadfunc id:" << std::this_thread::get_id() << std::endl;
 	std::cout << "end threadfunc id:" << std::this_thread::get_id() << std::endl;*/
-	for (;;) {
+	while(isPoolRunning_) {
 		std::shared_ptr<Task> task;
 		auto lastTime = std::chrono::high_resolution_clock().now();
 		{	//获取锁
 			std::unique_lock<std::mutex> lock(taskQueMtx_);
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
-
+			while (taskQue_.size() == 0) {
 			//cached模式下可能创建很多线程，如果空闲时间超过60s，则回收线程
 			//回收超过initThreadSize_的线程
 			//当前时间-上一次执行任务时间>60s
-			if (poolMode_ == PoolMode::CACHE_MODE) {
-				//每一秒返回一次  区分超时返回，有任务待返回
-				while (taskQue_.size() == 0) {
+				if (poolMode_ == PoolMode::CACHE_MODE) {
+					//每一秒返回一次  区分超时返回，有任务待返回
+				
 					//超时返回
 					if (std::cv_status::timeout == 
 						notEmpty_.wait_for(lock, std::chrono::seconds(1))) {
@@ -164,11 +169,22 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 						}
 					}
 				}
+				else {
+					//等待notEmpty_条件
+					notEmpty_.wait(lock);
+				}
+				//线程池要结束了，线程被唤醒，则结束该线程，
+				if (!isPoolRunning_) {
+					threads_.erase(threadId);
+					//线程池要结束了，就可以不用维护这两个变量了
+					/*curThreadSize_--;
+					idleThreadSize_--;*/
+					std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
+					exitCond_.notify_all();//通知退出判断，否则一直析构函数一直阻塞着。
+					return;//函数结束，线程结束！
+				}
 			}
-			else {
-				//等待notEmpty_条件
-				notEmpty_.wait(lock, [&]()->bool {return taskQue_.size() > 0;});
-			}
+			
 
 			idleThreadSize_--;//拿到任务，空闲线程-1
 			std::cout << "tid:" << std::this_thread::get_id() << "already got mutex!" << std::endl;
@@ -191,6 +207,12 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 		idleThreadSize_++;//这里是线程的执行步骤，执行完任务task->exec()，才能到这一行
 		lastTime = std::chrono::high_resolution_clock().now();//记录上一次执行任务的时间
 	}
+	//出了while循环，线程池要结束了，则结束该线程
+	threads_.erase(threadId);
+	std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
+	exitCond_.notify_all();
+	return;
+	
 }
 /// <summary>
 /// 线程方法实现
