@@ -44,6 +44,30 @@ private:
 };
 
 int main() {
+	{
+	//死锁问题测试，有几率出现线程不能结束，线程在等待notEmpty，析构函数在等待exitCond，可是这两个不能被唤醒了
+	// 发生在线程池析构函数将线程池状态改变之前，线程在就绪状态准备抢锁，而抢锁后，线程池状态改变。
+	//1、若析构函数在析构时先抢到taskQueMtx_，然后进入exitCond_ wait,等待threads_==0，释放锁
+	//线程函数从就绪态再抢到taskQueMtx_，通过双重判断线程池的运行状态，也就是说在拿到锁之后再判断一次
+	//如果线程池已关闭，则跳出循环，删除threads_的这个线程，唤醒exitCond_。
+	//2、若线程先抢到taskQueMtx_，进入notEmpty，等待任务列表不空，释放锁
+	//析构函数再抢到taskQueMtx_，这时应该唤醒等待线程，notEmpty_ notify,线程便会发现线程池结束了
+	//则跳出循环，删除threads_的这个线程，唤醒exitCond_。
+	ThreadPool pool;
+	pool.setMode(PoolMode::CACHE_MODE);
+	pool.start(2);
+	Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	int sum1 = res1.get().cast_<int>();
+	std::cout << "sum:" << sum1 << std::endl;
+	
+	}
+
+	std::cout << "main thread is over!" << std::endl;
+if (0)
 	//线程池ThreadPool对象析构，线程池相关资源回收
 	{
 		ThreadPool pool;

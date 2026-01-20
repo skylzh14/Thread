@@ -162,7 +162,7 @@ public:
 	void setMode(PoolMode mode);
 
 	//启动线程池
-	void start(int initThreadSize = 4);
+	void start(int initThreadSize = std::thread::hardware_concurrency());//初始数量为计算机的cpu核心数量
 
 	ThreadPool(const ThreadPool&) = delete;
 	ThreadPool operator=(const ThreadPool&) = delete;

@@ -36,9 +36,10 @@ ThreadPool::ThreadPool() :
 //线程池析构
 ThreadPool::~ThreadPool() {
 	isPoolRunning_ = false;
-	notEmpty_.notify_all();//唤醒所有阻塞线程
+	
 	//等待线程池里面的线程返回，阻塞或者正在执行任务
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
+	notEmpty_.notify_all();//唤醒所有阻塞线程
 	exitCond_.wait(lock, [&]()->bool {return threads_.size() == 0;});
 
 }
@@ -143,7 +144,8 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 		{	//获取锁
 			std::unique_lock<std::mutex> lock(taskQueMtx_);
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
-			while (taskQue_.size() == 0) {
+			//再次判断线程池状态，避免死锁
+			while (isPoolRunning_ && taskQue_.size() == 0) {
 			//cached模式下可能创建很多线程，如果空闲时间超过60s，则回收线程
 			//回收超过initThreadSize_的线程
 			//当前时间-上一次执行任务时间>60s
@@ -173,16 +175,20 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 					//等待notEmpty_条件
 					notEmpty_.wait(lock);
 				}
-				//线程池要结束了，线程被唤醒，则结束该线程，
-				if (!isPoolRunning_) {
-					threads_.erase(threadId);
-					//线程池要结束了，就可以不用维护这两个变量了
-					/*curThreadSize_--;
-					idleThreadSize_--;*/
-					std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
-					exitCond_.notify_all();//通知退出判断，否则一直析构函数一直阻塞着。
-					return;//函数结束，线程结束！
-				}
+				////线程池要结束了，线程被唤醒，则结束该线程，
+				//if (!isPoolRunning_) {
+				//	threads_.erase(threadId);
+				//	//线程池要结束了，就可以不用维护这两个变量了
+				//	/*curThreadSize_--;
+				//	idleThreadSize_--;*/
+				//	std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
+				//	exitCond_.notify_all();//通知退出判断，否则一直析构函数一直阻塞着。
+				//	return;//函数结束，线程结束！
+				//}
+			}
+			//优化  如果线程池关闭，就不用执行任务了，跳出循环，删除线程。
+			if (!isPoolRunning_) {
+				break;
 			}
 			
 
