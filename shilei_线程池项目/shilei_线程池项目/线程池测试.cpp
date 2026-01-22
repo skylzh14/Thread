@@ -82,8 +82,6 @@ if (0)
 		Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 		Result res2 = pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
 		Result res3 = pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
-
-
 		pool.submitTask(std::make_shared<MyTask2>(1001, 2000));
 		pool.submitTask(std::make_shared<MyTask2>(2001, 3000));
 		pool.submitTask(std::make_shared<MyTask2>(2001, 3000));

@@ -136,22 +136,27 @@ void ThreadPool::start(int initThreadSize) {
 }
 //定义线程函数
 void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
-	/*std::cout << "begin threadfunc id:" << std::this_thread::get_id() << std::endl;
-	std::cout << "end threadfunc id:" << std::this_thread::get_id() << std::endl;*/
-	while(isPoolRunning_) {
+	//线程需要将任务队列的所有任务执行完，才能析构，不能用isPoolRunning_作为判断条件
+	for (;;) {
 		std::shared_ptr<Task> task;
 		auto lastTime = std::chrono::high_resolution_clock().now();
 		{	//获取锁
 			std::unique_lock<std::mutex> lock(taskQueMtx_);
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
 			//再次判断线程池状态，避免死锁
-			while (isPoolRunning_ && taskQue_.size() == 0) {
+			while (taskQue_.size() == 0) {
+				//当任务为0时，看线程池状态，决定是否删除线程
+				if (!isPoolRunning_) {
+					threads_.erase(threadId);
+					std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
+					exitCond_.notify_all();
+					return;
+				}
 			//cached模式下可能创建很多线程，如果空闲时间超过60s，则回收线程
 			//回收超过initThreadSize_的线程
 			//当前时间-上一次执行任务时间>60s
 				if (poolMode_ == PoolMode::CACHE_MODE) {
 					//每一秒返回一次  区分超时返回，有任务待返回
-				
 					//超时返回
 					if (std::cv_status::timeout == 
 						notEmpty_.wait_for(lock, std::chrono::seconds(1))) {
@@ -175,16 +180,6 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 					//等待notEmpty_条件
 					notEmpty_.wait(lock);
 				}
-				////线程池要结束了，线程被唤醒，则结束该线程，
-				//if (!isPoolRunning_) {
-				//	threads_.erase(threadId);
-				//	//线程池要结束了，就可以不用维护这两个变量了
-				//	/*curThreadSize_--;
-				//	idleThreadSize_--;*/
-				//	std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
-				//	exitCond_.notify_all();//通知退出判断，否则一直析构函数一直阻塞着。
-				//	return;//函数结束，线程结束！
-				//}
 			}
 			//优化  如果线程池关闭，就不用执行任务了，跳出循环，删除线程。
 			if (!isPoolRunning_) {
@@ -212,13 +207,7 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 			task->exec();
 		idleThreadSize_++;//这里是线程的执行步骤，执行完任务task->exec()，才能到这一行
 		lastTime = std::chrono::high_resolution_clock().now();//记录上一次执行任务的时间
-	}
-	//出了while循环，线程池要结束了，则结束该线程
-	threads_.erase(threadId);
-	std::cout << "threadId:" << std::this_thread::get_id() << "exit!" << std::endl;
-	exitCond_.notify_all();
-	return;
-	
+	}		
 }
 /// <summary>
 /// 线程方法实现
