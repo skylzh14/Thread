@@ -143,7 +143,7 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 		{	//获取锁
 			std::unique_lock<std::mutex> lock(taskQueMtx_);
 			std::cout << "tid:" << std::this_thread::get_id() << "try to get mutex!" << std::endl;
-			//再次判断线程池状态，避免死锁
+			//若有任务，不进行循环，直接拿任务执行
 			while (taskQue_.size() == 0) {
 				//当任务为0时，看线程池状态，决定是否删除线程
 				if (!isPoolRunning_) {
@@ -180,12 +180,7 @@ void ThreadPool::ThreadFunc(int threadId) {  //线程函数返回，线程结束
 					//等待notEmpty_条件
 					notEmpty_.wait(lock);
 				}
-			}
-			//优化  如果线程池关闭，就不用执行任务了，跳出循环，删除线程。
-			if (!isPoolRunning_) {
-				break;
-			}
-			
+			}	
 
 			idleThreadSize_--;//拿到任务，空闲线程-1
 			std::cout << "tid:" << std::this_thread::get_id() << "already got mutex!" << std::endl;

@@ -61,8 +61,8 @@ int main() {
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
-	int sum1 = res1.get().cast_<int>();
-	std::cout << "sum:" << sum1 << std::endl;
+	/*int sum1 = res1.get().cast_<int>();
+	std::cout << "sum:" << sum1 << std::endl;*/
 	
 	}
 
