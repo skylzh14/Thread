@@ -10,6 +10,8 @@
 #include <functional>
 #include <unordered_map>
 #include <future>
+#include <thread>
+#include <chrono>
 
 #define TASK_MAX_THRESHHOLD 1024//避免魔鬼数字
 #define THREAD_MAX_THRESHHOLD 10
@@ -32,7 +34,7 @@ public:
 
 	}
 	//线程析构函数
-	~Thread();
+	~Thread() = default;
 	//线程启动
 	void start() {
 		//创建一个线程执行一个线程函数
@@ -86,7 +88,19 @@ public:
 	}
 
 	//提交任务
-	Result submitTask(std::shared_ptr<Task> sp) {
+	//使用可便参模板编程，使得submitTask可以接受任意返回类型和任意参数
+	//右值引用+引用折叠
+	//返回future<>，
+	template<typename Func, typename... Args>
+	auto submitTask(Func&& func, Args&&... args) -> std::future<decltype(func(args...))> {
+
+		using Rtype = decltype(func(args...));
+		auto task = std::make_shared<std::packaged_task<Rtype()>>(
+			std::bind(std::forward<Func>(func), std::forward<Args>(args)...)
+		);
+		
+		std::future<Rtype> res = task->get_future();
+
 		//获取锁
 		std::unique_lock<std::mutex> lock(taskQueMtx_);
 
@@ -97,11 +111,18 @@ public:
 			[&]()->bool {return taskQue_.size() < taskQueMaxThreshHold_;})) {
 			//notFull_等待一秒钟，还未满足
 			std::cerr << "task queue is full, submit task fail." << std::endl;
-			return Result(sp, false);
+			auto task = std::make_shared<std::packaged_task<Rtype()>>(
+				[]()->Rtype {return Rtype();}
+			);
+			(*task)();
+			return task->get_future();
 		}
 
 		//若不满，则将任务放到任务队列
-		taskQue_.emplace(sp);
+		//taskQue_.emplace(sp);
+		taskQue_.emplace([task]() {
+			(*task)();
+			});
 		taskSize_++;
 		std::cout << "放入一个任务" << std::endl;
 
@@ -126,7 +147,7 @@ public:
 			idleThreadSize_++;
 		}
 
-		return Result(sp, true);
+		return res;
 	}
 
 	//设置线程池的工作模式
@@ -166,7 +187,7 @@ private:
 	void ThreadFunc(int threadId) {  //线程函数返回，线程结束
 		//线程需要将任务队列的所有任务执行完，才能析构，不能用isPoolRunning_作为判断条件
 		for (;;) {
-			std::shared_ptr<Task> task;
+			Task task;
 			auto lastTime = std::chrono::high_resolution_clock().now();
 			{	//获取锁
 				std::unique_lock<std::mutex> lock(taskQueMtx_);
@@ -225,9 +246,7 @@ private:
 			}//取到任务后，释放锁
 			//当前线程负责执行这个任务
 			if (task != nullptr)
-				//task->run();//运行任务
-				//还需要记录任务的返回值，run是一个虚函数，则用exec包含run实现。
-				task->exec();
+				task();
 			idleThreadSize_++;//这里是线程的执行步骤，执行完任务task->exec()，才能到这一行
 			lastTime = std::chrono::high_resolution_clock().now();//记录上一次执行任务的时间
 		}
@@ -246,7 +265,8 @@ private:
 	int threadSizeThreshHold_;//线程数量上线阈值
 	std::atomic_int curThreadSize_;//当前线程池中线程的数量
 
-	std::queue<std::shared_ptr<Task>> taskQue_;//任务队列
+	using Task = std::function<void()>;
+	std::queue<Task> taskQue_;//任务队列
 	std::atomic_int taskSize_;//任务数量
 	size_t taskQueMaxThreshHold_;//任务队列的最大阈值
 

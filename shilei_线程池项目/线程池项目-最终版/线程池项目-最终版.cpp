@@ -5,6 +5,8 @@
 #include <future>
 #include <functional>
 #include <thread>
+#include "threadpool.h"
+#include <chrono>
 
 using namespace std;
 
@@ -14,12 +16,16 @@ int sum1(int a, int b){
 
 int main()
 {
-    packaged_task<int(int, int)> task(sum1);
+    ThreadPool pool;
+    pool.start(4);
+    std::future<int> res = pool.submitTask(sum1, 1, 2);
+    cout << res.get() << endl;
+   /* packaged_task<int(int, int)> task(sum1);
     future<int> res = task.get_future();
 
     thread t(std::move(task), 1, 2);
     t.detach();
     
-    cout << res.get() << endl;
+    cout << res.get() << endl;*/
 }
 
