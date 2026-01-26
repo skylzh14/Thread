@@ -235,8 +235,11 @@ void Thread::start() {
 Task::Task():result_(nullptr){}
 
 void Task::exec() {
-	if(result_ != nullptr)
+	
+	if (result_ != nullptr) {
 		result_->setVal(run());//这里发生多态的调用
+	}
+		
 }
 
 void Task::setResult(Result* result) {
@@ -244,10 +247,14 @@ void Task::setResult(Result* result) {
 }
 
 /// //// Result实现
-Result::Result(std::shared_ptr<Task> task, bool isValid):
-	task_(task),isValid_(isValid)
+Result::Result(std::shared_ptr<Task> task, bool isValid) :
+	task_(task), isValid_(isValid)
 {
 	task_->setResult(this);
+}
+
+Result::~Result() {
+
 }
 
 Any Result::get() {

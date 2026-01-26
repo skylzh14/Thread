@@ -94,7 +94,7 @@ class Task;
 class Result {
 public:
 	Result(std::shared_ptr<Task> task, bool isValid = true);
-	~Result() = default;
+	~Result();
 	
 	//问题一：setVal()方法，获取任务的返回值，信号量post
 	void setVal(Any any);

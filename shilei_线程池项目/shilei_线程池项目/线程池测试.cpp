@@ -54,9 +54,10 @@ int main() {
 	//析构函数再抢到taskQueMtx_，这时应该唤醒等待线程，notEmpty_ notify,线程便会发现线程池结束了
 	//则跳出循环，删除threads_的这个线程，唤醒exitCond_。
 	ThreadPool pool;
-	pool.setMode(PoolMode::CACHE_MODE);
+	//pool.setMode(PoolMode::CACHE_MODE);
 	pool.start(2);
-	Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	//Result res1 = pool.submitTask(std::make_shared<MyTask2>(1, 1000));
+	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
 	pool.submitTask(std::make_shared<MyTask2>(1, 1000));
