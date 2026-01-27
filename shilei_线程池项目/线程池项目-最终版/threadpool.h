@@ -13,7 +13,7 @@
 #include <thread>
 #include <chrono>
 
-#define TASK_MAX_THRESHHOLD 1024//避免魔鬼数字
+#define TASK_MAX_THRESHHOLD 2//避免魔鬼数字
 #define THREAD_MAX_THRESHHOLD 10
 #define	THREAD_MAX_IDLE_TIME 10//单位 s
 
